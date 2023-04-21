@@ -28,7 +28,13 @@ function startCamera()
         setVideoMuteState(videoMuted);
 
         // hands detect in frames
-        handsDetectCamera("",{"selfieMode":false,"maxNumHands":2,"minDetectionConfidence":0.5,"minTrackingConfidence":0.5},480,480).start()
+        handsDetectCamera("",{"selfieMode":false,
+                                        "maxNumHands":2,
+                                        "minDetectionConfidence":0.5,
+                                        "minTrackingConfidence":0.5},
+                                    480,
+                                    480).start()
+
         //start the socketio connection
         socket.connect();
     })
@@ -255,7 +261,7 @@ function handleTrackEvent(event, peer_id)
     }
 }
 
-//-----------------------------------------
+//----------------[ media pipe]-------------------------
 // media pipe
 
 // hands detector init
@@ -287,11 +293,28 @@ function  createHands(){
     return hands;
 }
 
+// get html ids
+function getHTMLIds(id){
+    const iD={
+        "video":"videoCamera",
+        "canvas": "output",
+        "controls":"control"
+    }
+  if(id.length===0)
+      return iD;
+  iD.video+=id;
+  iD.controls+=id;
+  iD.canvas+=id;
+
+    return id;
+}
+
 // canvas init to show processed frame
 function createHTMLMPElement(id){
-    let video = document.getElementById("videoCamera");
-    let canvas = document.getElementsByClassName('output')[0];
-    let controls = document.getElementsByClassName('control')[0];
+    const iD=getHTMLIds(id);
+    let video = document.getElementById(iD.video);
+    let canvas = document.getElementsByClassName(iD.canvas)[0];
+    let controls = document.getElementsByClassName(iD.controls)[0];
     let canvasCtx = canvas.getContext('2d');
     let fpsControl = new FPS();
     return {"video":video,"canvas":canvas,"controls":controls,"canvasCtx":canvasCtx,"fpsControl":fpsControl};
@@ -369,7 +392,7 @@ function createControlPanel(hands,htmlElement,options) {
             }),
         ])
         .on(options => {
-            // videoCamera.classList.toggle('selfie', options.selfieMode);
+            video.classList.toggle('selfie', options.selfieMode);
             hands.setOptions(options);
         });
 }
