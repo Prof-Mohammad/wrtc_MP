@@ -12,7 +12,10 @@ var mediaConstraints = {
     } // ...and we want a video track
 };
 
-
+const constOptions= {"selfieMode":false,
+                 "maxNumHands":2,
+                 "minDetectionConfidence":0.5,
+                  "minTrackingConfidence":0.5};
 document.addEventListener("DOMContentLoaded", (event)=>{
     startCamera();
 });
@@ -28,10 +31,7 @@ function startCamera()
         setVideoMuteState(videoMuted);
 
         // hands detect in frames
-        handsDetectCamera("",{"selfieMode":false,
-                                        "maxNumHands":2,
-                                        "minDetectionConfidence":0.5,
-                                        "minTrackingConfidence":0.5},
+        handsDetectCamera("",null,constOptions,
                                     480,
                                     480).start()
 
@@ -162,7 +162,6 @@ function invite(peer_id)
         let local_stream = myVideo.srcObject;
         local_stream.getTracks().forEach((track)=>{
             _peer_list[peer_id].addTrack(track, local_stream);
-
         });
     }
 
@@ -258,6 +257,7 @@ function handleTrackEvent(event, peer_id)
     if(event.streams)
     {
         getVideoObj(peer_id).srcObject = event.streams[0];
+        handsDetectCamera("1", getVideoObj(peer_id),constOptions,480, 480).start()
     }
 }
 
@@ -265,11 +265,18 @@ function handleTrackEvent(event, peer_id)
 // media pipe
 
 // hands detector init
-function handsDetectCamera(id, options, width, height){
+function handsDetectCamera(id, video, options, width, height){
+    var  camera ;
     const hands = createHands()
-    const htmlElement= createHTMLMPElement("")
+    const htmlElement= createHTMLMPElement(id)
     hands.onResults(results => onResultsHands(results, htmlElement));
-    const camera = createCamera(htmlElement.video,hands,width,height)
+    if(video){
+        console.log("video is sent")
+        camera=createCamera( video,hands,width,height)
+    }
+    else {
+        camera = createCamera(htmlElement.video,hands,width,height)
+    }
     createControlPanel(hands,htmlElement,options)
     return camera;
 }
@@ -306,7 +313,7 @@ function getHTMLIds(id){
   iD.controls+=id;
   iD.canvas+=id;
 
-    return id;
+    return iD;
 }
 
 // canvas init to show processed frame

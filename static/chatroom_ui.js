@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", (event)=>{
 });
 
 
-function makeVideoElement(element_id, display_name, tmp)
+function makeVideoElement(element_id, display_name)
 {
     let wrapper_div = document.createElement("div");
     let vid_wrapper = document.createElement("div");
@@ -49,9 +49,9 @@ function makeVideoElement(element_id, display_name, tmp)
     return wrapper_div;
 }
 
-function addVideoElement(element_id, display_name, tmp)
+function addVideoElement(element_id, display_name)
 {        
-    document.getElementById("video_grid").appendChild(makeVideoElement(element_id, display_name, tmp));
+    document.getElementById("video_grid").appendChild(makeVideoElement(element_id, display_name));
 }
 function removeVideoElement(element_id)
 {    

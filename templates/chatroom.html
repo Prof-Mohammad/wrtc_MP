@@ -58,7 +58,10 @@
     </div>
         
     <div class="container-fluid px-0 mx-0">
-        <div id="video_grid" class="video-grid"></div>
+
+{#        <div id="video_grid" class="video-grid" style="display: none"></div>#}
+        <div id="video_grid" class="video-grid" ></div>
+
         <div id="control_box" class="row control-box shadow">
             <div class="col-7 col-md-8 col-lg-9 d-flex justify-content-around align-items-center button-box">
                 
@@ -89,6 +92,12 @@
 
     <video id="videoCamera" autoplay style="display: none"></video>
     <div style="visibility: hidden;" class="control">  </div>
+
+
+     <canvas class="output1" ></canvas>
+    <video id="videoCamera1" autoplay style="display: none"></video>
+    <div style="visibility: hidden;" class="control1">  </div>
+
     <script type="text/javascript" src="/static/chatroom_networking.js"></script>
 </body>
 </html>
