@@ -31,7 +31,7 @@ function startCamera()
         setVideoMuteState(videoMuted);
 
         // hands detect in frames
-        handsDetectCamera("",null,constOptions,
+        handsDetectCamera("","",null,constOptions,
                                     480,
                                     480).start()
 
@@ -257,7 +257,7 @@ function handleTrackEvent(event, peer_id)
     if(event.streams)
     {
         getVideoObj(peer_id).srcObject = event.streams[0];
-        handsDetectCamera("1", getVideoObj(peer_id),constOptions,480, 480).start()
+        handsDetectCamera("1", peer_id ,getVideoObj(peer_id),constOptions,480, 480).start()
     }
 }
 
@@ -265,11 +265,11 @@ function handleTrackEvent(event, peer_id)
 // media pipe
 
 // hands detector init
-function handsDetectCamera(id, video, options, width, height){
+function handsDetectCamera(id, peer_id, video, options, width, height){
     var  camera ;
     const hands = createHands()
     const htmlElement= createHTMLMPElement(id)
-    hands.onResults(results => onResultsHands(results, htmlElement));
+    hands.onResults(results => onResultsHands(peer_id, results, htmlElement));
     if(video){
         console.log("video is sent")
         camera=createCamera( video,hands,width,height)
@@ -328,7 +328,7 @@ function createHTMLMPElement(id){
 }
 
 // process frame to detect hand
-function onResultsHands(results, htmlElement) {
+function onResultsHands(peer_id,results, htmlElement) {
    const canvas = htmlElement.canvas
    const canvasCtx = htmlElement.canvasCtx
    const fpsControl = htmlElement.fpsControl
@@ -356,6 +356,10 @@ function onResultsHands(results, htmlElement) {
             });
       }
   }
+  canvasCtx.font = '30px Arial';
+  canvasCtx.fillStyle = 'red';
+  canvasCtx.textAlign = 'center';
+  canvasCtx.fillText(peer_id, canvas.width/2, canvas.height/3);
   canvasCtx.restore();
 }
 
