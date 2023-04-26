@@ -36,7 +36,7 @@ function makeVideoElement(element_id, display_name)
 
     wrapper_div.className = "shadow video-item";
     vid_wrapper.className = "vid-wrapper";
-    name_text.className = "display-name";
+    name_text.className = "display-name_video";
     
     vid.autoplay = true;
     name_text.innerText = display_name;
@@ -87,44 +87,31 @@ function setVideoMuteState(flag)
 
 //-------------------------------------------------------
 // canvas Element
-function makeCanvasElement(element_id, display_name){
-    let wrapper_div = document.createElement("div");
-    let canvas_wrapper = document.createElement("div");
-    let canvas = document.createElement("canvas");
+function makeCanvasElement(htmlElements,element_id, display_name){
+
+    let canvas_div = document.createElement("div");
+    canvas_div.id="cnavas_div_"+element_id
+    canvas_div.appendChild(htmlElements.canvas)
+    canvas_div.appendChild(htmlElements.video)
+    canvas_div.appendChild(htmlElements.controls)
+
     let name_text = document.createElement("div");
-
-    wrapper_div.id = "div_"+element_id;
-    canvas.id = "canvas"+element_id;
-
-    wrapper_div.className = "shadow canvas-item";
-    canvas_wrapper.className = "canvas-wrapper";
     name_text.className = "display-name";
+    name_text.innerText=display_name
+    canvas_div.appendChild(name_text)
 
-    name_text.innerText = display_name;
-
-    canvas_wrapper.appendChild(canvas);
-    wrapper_div.appendChild(canvas_wrapper);
-    wrapper_div.appendChild(name_text);
-
-
-    return wrapper_div;
+    return canvas_div;
 
 }
-function addCanvasElement(){
-    document.getElementById("canvas_grid").appendChild(makeCanvasElement(element_id, display_name));
+function addCanvasElement(htmlElements,element_id,display_name){
+    document.getElementById("canvas_grid").appendChild(makeCanvasElement(htmlElements,element_id, display_name));
 
 }
+
 function removeCanvasElement(element_id){
-let c = getCanvasElement(element_id);
-    if(c.srcObject){
-        c.srcObject.getTracks().forEach(track => track.stop());
-    }
-    c.removeAttribute("srcObject");
-    c.removeAttribute("src");
-
-    document.getElementById("div_"+element_id).remove();
+    document.getElementById("cnavas_div_"+element_id).remove();
 }
 
 function getCanvasElement(element_id){
-    return document.getElementById("canvas_"+element_id);
+    return document.getElementById("cnavas_div"+element_id);
 }

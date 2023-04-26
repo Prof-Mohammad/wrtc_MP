@@ -8,11 +8,12 @@ var camera_allowed=false;
 var mediaConstraints = {
     audio: true, // We want an audio track
     video: {
+        autoplay: true,
         height: 360
     } // ...and we want a video track
 };
 
-const constOptions= {"selfieMode":false,
+const constOptions= {"selfieMode":true,
                  "maxNumHands":2,
                  "minDetectionConfidence":0.5,
                   "minTrackingConfidence":0.5};
@@ -31,9 +32,7 @@ function startCamera()
         setVideoMuteState(videoMuted);
 
         // hands detect in frames
-        handsDetectCamera("","",null,constOptions,
-                                    480,
-                                    480).start()
+        handsDetectCameraLocal(myVideo,constOptions, 480, 480).start()
 
         //start the socketio connection
         socket.connect();
@@ -59,6 +58,7 @@ socket.on("user-connect", (data)=>{
     let display_name = data["name"];
     _peer_list[peer_id] = undefined; // add new user to user list
     addVideoElement(peer_id, display_name);
+    handsDetectCameraRemote(peer_id ,getVideoObj(peer_id), display_name ,constOptions,480, 480).start()
 });
 
 
@@ -67,6 +67,7 @@ socket.on("user-disconnect", (data)=>{
     let peer_id = data["sid"];
     closeConnection(peer_id);
     removeVideoElement(peer_id);
+    removeCanvasElement(peer_id);
 });
 
 
@@ -75,14 +76,15 @@ socket.on("user-list", (data)=>{
     myID = data["my_id"];
     if( "list" in data) // not the first to connect to room, existing user list recieved
     {
-        let recvd_list = data["list"];  
+        let recvd_list = data["list"];
         // add existing users to user list
         for(peer_id in recvd_list)
         {
             display_name = recvd_list[peer_id];
             _peer_list[peer_id] = undefined;
             addVideoElement(peer_id, display_name);
-        } 
+            handsDetectCameraRemote(peer_id ,getVideoObj(peer_id), display_name ,constOptions,480, 480).start()
+        }
         start_webrtc();
     }    
 });
@@ -257,30 +259,35 @@ function handleTrackEvent(event, peer_id)
     if(event.streams)
     {
         getVideoObj(peer_id).srcObject = event.streams[0];
-        handsDetectCamera("1", peer_id ,getVideoObj(peer_id),constOptions,480, 480).start()
     }
 }
 
 //----------------[ media pipe]-------------------------
 // media pipe
 
-// hands detector init
-function handsDetectCamera(id, peer_id, video, options, width, height){
+// hands detector init local video
+function handsDetectCameraLocal(local_video,options, width, height){
     var  camera ;
     const hands = createHands()
-    const htmlElement= createHTMLMPElement(id)
-    hands.onResults(results => onResultsHands(peer_id, results, htmlElement));
-    if(video){
-        console.log("video is sent")
-        camera=createCamera( video,hands,width,height)
-    }
-    else {
-        camera = createCamera(htmlElement.video,hands,width,height)
-    }
-    createControlPanel(hands,htmlElement,options)
+    const htmlElements= getHTMLMPElements()
+    hands.onResults(results => onResultsHands("local", results, htmlElements));
+    camera = createCamera(htmlElements.video,hands,width,height)
+    // camera = createCamera(local_video,hands,width,height)
+    createControlPanel(hands,htmlElements,options)
     return camera;
 }
 
+// hands detector init remot video
+function handsDetectCameraRemote(peer_id, video, display_name, options, width, height){
+    const htmlElements= createHTMLMPElements(peer_id)
+    addCanvasElement(htmlElements,peer_id,display_name)
+    var  camera ;
+    const hands = createHands()
+    hands.onResults(results => onResultsHands(peer_id, results, htmlElements));
+    camera=createCamera( video,hands,width,height)
+    createControlPanel(hands,htmlElements,options)
+    return camera;
+}
 // camera create to detect hand
 function createCamera(video, hands, width, height){
     return new Camera(video, {
@@ -317,8 +324,8 @@ function getHTMLIds(id){
 }
 
 // canvas init to show processed frame
-function createHTMLMPElement(id){
-    const iD=getHTMLIds(id);
+function getHTMLMPElements(){
+    const iD=getHTMLIds("");
     let video = document.getElementById(iD.video);
     let canvas = document.getElementsByClassName(iD.canvas)[0];
     let controls = document.getElementsByClassName(iD.controls)[0];
@@ -327,41 +334,152 @@ function createHTMLMPElement(id){
     return {"video":video,"canvas":canvas,"controls":controls,"canvasCtx":canvasCtx,"fpsControl":fpsControl};
 }
 
+function createHTMLMPElements(peer_id){
+    const iD=getHTMLIds(peer_id);
+    let video = document.createElement("video");
+    video.id=iD.video
+    video.autoplay=true
+    video.style="display: none"
+
+    let canvas = document.createElement("canvas");
+    canvas.className=iD.canvas
+
+    let controls = document.createElement("div");
+    controls.id= iD.controls
+    controls.style="visibility: hidden;"
+
+    let canvasCtx = canvas.getContext('2d')
+    let fpsControl = new FPS();
+    return {"video":video,"canvas":canvas,"controls":controls,"canvasCtx":canvasCtx,"fpsControl":fpsControl};
+}
 // process frame to detect hand
 function onResultsHands(peer_id,results, htmlElement) {
-   const canvas = htmlElement.canvas
-   const canvasCtx = htmlElement.canvasCtx
-   const fpsControl = htmlElement.fpsControl
+  const canvas = htmlElement.canvas
+  const canvasCtx = htmlElement.canvasCtx
+  const fpsControl = htmlElement.fpsControl
+  canvasCtx.font = '20px Arial';
+  canvasCtx.fillStyle = 'red';
+  canvasCtx.textAlign = 'center';
 
-   document.body.classList.add('loaded');
+  document.body.classList.add('loaded');
   fpsControl.tick();
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-  canvasCtx.drawImage(
-      results.image, 0, 0, canvas.width, canvas.height);
+  // canvasCtx.translate(canvas.width, 0);
+  // canvasCtx.scale(-1, 1);
+  canvasCtx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
   if (results.multiHandLandmarks && results.multiHandedness) {
-    for (let index = 0; index < results.multiHandLandmarks.length; index++) {
+    // for (let index = 0; index < results.multiHandLandmarks.length; index++) {
+      let index=0;
         const classification = results.multiHandedness[index];
         const isRightHand = classification.label === 'Right';
         const landmarks = results.multiHandLandmarks[index];
-        drawConnectors(
-            canvasCtx, landmarks, HAND_CONNECTIONS,
-            {color: isRightHand ? '#00FF00' : '#FF0000'}),
-            drawLandmarks(canvasCtx, landmarks, {
-              color: isRightHand ? '#00FF00' : '#FF0000',
-              fillColor: isRightHand ? '#FF0000' : '#00FF00',
-              radius: (x) => {
-                return lerp(x.from.z, -0.15, .1, 5, 1);
-              }
-            });
+        let angles = calculateAngles(landmarks,isRightHand)
+        // showAngles(canvas,canvasCtx,angles,[landmarks[1],landmarks[3],landmarks[9],landmarks[17]]);
+// showAngles(canvas,canvasCtx, angles,[landmarks[1],landmarks[8],landmarks[9],landmarks[20]]);
+         showAngles(canvas,canvasCtx, [classification.label ],[landmarks[0]]);        // canvasCtx.fillText(classification.label , canvas.width/2, canvas.height/2);
+      // for(let i=0;i<=20;i++)
+      //   canvasCtx.fillText(i.toString(), landmarks[i].x*canvas.width, landmarks[i].y*canvas.height);
+
+        // drawConnectors(
+        //     canvasCtx, landmarks, HAND_CONNECTIONS,
+        //     {color: isRightHand ? '#00FF00' : '#FF0000'}
+        // )
+        // ,
+        // drawLandmarks(
+        //       canvasCtx, landmarks, {
+        //       color: isRightHand ? '#00FF00' : '#FF0000',
+        //       fillColor: isRightHand ? '#FF0000' : '#00FF00',
+        //       radius: (x) => {
+        //         return lerp(x.from.z, -0.15, .1, 5, 1);
+        //       }
+        // });
+
       }
-  }
-  canvasCtx.font = '30px Arial';
-  canvasCtx.fillStyle = 'red';
-  canvasCtx.textAlign = 'center';
-  canvasCtx.fillText(peer_id, canvas.width/2, canvas.height/3);
+  // }
+
+
   canvasCtx.restore();
 }
+
+function calculateAngles(landmarks,isRightHand) {
+    const angles = [];
+    let p1 = 4
+    let p2 = 2
+    landmarks[2] = getMiddlePoint(landmarks[2],landmarks[5])
+    let p3 = 6
+
+    let p4 = 8
+    let p5 = 5
+    landmarks[5] = getMiddlePoint(landmarks[5],landmarks[9])
+    let p6 = 12
+
+    let p7 = 12
+    let p8 = 9
+    landmarks[9] = getMiddlePoint(landmarks[9],landmarks[13])
+    let p9 = 16
+
+    let p10 = 16
+    let p11 = 13
+    landmarks[13] = getMiddlePoint(landmarks[13],landmarks[17])
+    let p12 = 20
+
+
+    const fingers = [
+        [p1, p2, p3],
+        [p4, p5, p6],
+        [p7, p8, p9],
+        [p10, p11, p12],
+    ];
+
+    let angle;
+    for (let i = 0; i < fingers.length; i++) {
+        const [p1, p2, p3] = fingers[i].map(idx => landmarks[idx]);
+        const radians = Math.atan2(p3.y - p2.y, p3.x - p2.x) - Math.atan2(p1.y - p2.y, p1.x - p2.x);
+        angle = radians * 180 / Math.PI;
+        angle = angle < 0 ? angle + 360 : angle;
+        angle = reCalculateAngle(landmarks, angle, isRightHand)
+        angles.push(Math.round(angle));
+    }
+
+    return angles;
+}
+
+function reCalculateAngle(landmarks, angle, isRightHand){
+    if(isRightHand && landmarks[0].x < landmarks[20].x)
+        return angle
+    if(isRightHand && landmarks[0].x > landmarks[20].x)
+        return 360-angle
+    if(landmarks[0].x > landmarks[20].x)
+        return 360-angle
+    if(landmarks[0].x < landmarks[20].x)
+        return angle
+}
+
+function showAngles(canvas,canvasCtx, angles, points){
+    for(let i=0;i<angles.length;i++){
+        canvasCtx.fillText(angles[i], points[i].x*canvas.width, points[i].y*canvas.height);
+    }
+}
+function toString(angles){
+    let str = "[ ";
+    str +=angles[0];
+    str +=", "
+    str +=angles[1];
+    str +=", "
+    str +=angles[2];
+    str +=", "
+    str +=angles[3];
+    str +=" ]"
+    return str;
+}
+
+function getMiddlePoint(p1 , p2){
+    const x = (p1.x + p2.x) / 2;
+    const y = (p1.y + p2.y) / 2;
+    return { x, y };
+}
+
 
 // control panel create
 function createControlPanel(hands,htmlElement,options) {
