@@ -374,18 +374,13 @@ function onResultsHands(peer_id,results, htmlElement) {
         const classification = results.multiHandedness[index];
         const isRightHand = classification.label === 'Right';
         const landmarks = results.multiHandLandmarks[index];
-        let angles = calculateAngles(landmarks,isRightHand)
-        // showAngles(canvas,canvasCtx,angles,[landmarks[1],landmarks[3],landmarks[9],landmarks[17]]);
-// showAngles(canvas,canvasCtx, angles,[landmarks[1],landmarks[8],landmarks[9],landmarks[20]]);
-         showAngles(canvas,canvasCtx, [classification.label ],[landmarks[0]]);        // canvasCtx.fillText(classification.label , canvas.width/2, canvas.height/2);
-      // for(let i=0;i<=20;i++)
-      //   canvasCtx.fillText(i.toString(), landmarks[i].x*canvas.width, landmarks[i].y*canvas.height);
+        let angles = calculateAngles(landmarks,isRightHand);
+         showAngles(canvas,canvasCtx, angles,[landmarks[1],landmarks[5],landmarks[9],landmarks[17]]);
+         // drawCirclesDefault(canvas, canvasCtx, landmarks);
+         drawCirclesDefault(canvas,canvasCtx,[landmarks[1],landmarks[5],landmarks[9],landmarks[17]])
+         drawLinesDefault(canvas,canvasCtx,landmarks)
+      // drawLine(canvas,canvasCtx,landmarks[0], landmarks[1],"red",10)
 
-        // drawConnectors(
-        //     canvasCtx, landmarks, HAND_CONNECTIONS,
-        //     {color: isRightHand ? '#00FF00' : '#FF0000'}
-        // )
-        // ,
         // drawLandmarks(
         //       canvasCtx, landmarks, {
         //       color: isRightHand ? '#00FF00' : '#FF0000',
@@ -402,7 +397,57 @@ function onResultsHands(peer_id,results, htmlElement) {
   canvasCtx.restore();
 }
 
-function calculateAngles(landmarks,isRightHand) {
+
+
+
+
+// control panel create
+function createControlPanel(hands,htmlElement,options) {
+    const video =htmlElement.video
+    const controls = htmlElement.controls
+    const fpsControl = htmlElement.fpsControl
+
+    const selfieMode = options.selfieMode;
+    const maxNumHands = options.maxNumHands;
+    const minDetectionConfidence= options.minDetectionConfidence;
+    const minTrackingConfidence= options.minTrackingConfidence;
+    new ControlPanel(controls, {
+        selfieMode: selfieMode,
+        maxNumHands: maxNumHands,
+        minDetectionConfidence: minDetectionConfidence,
+        minTrackingConfidence: minTrackingConfidence
+    })
+        .add([
+            new StaticText({title: 'MediaPipe Hands'}),
+            fpsControl,
+
+            new Toggle({title: 'Selfie Mode', field: 'selfieMode'}),
+
+            new Slider(
+                {title: 'Max Number of Hands', field: 'maxNumHands', range: [1, 4], step: 1}),
+
+            new Slider({
+                title: 'Min Detection Confidence',
+                field: 'minDetectionConfidence',
+                range: [0, 1],
+                step: 0.01
+            }),
+
+            new Slider({
+                title: 'Min Tracking Confidence',
+                field: 'minTrackingConfidence',
+                range: [0, 1],
+                step: 0.01
+            }),
+        ])
+        .on(options => {
+            video.classList.toggle('selfie', options.selfieMode);
+            hands.setOptions(options);
+        });
+}
+
+
+function calculateAngles(landmarks, isRightHand) {
     const angles = [];
     let p1 = 4
     let p2 = 2
@@ -461,6 +506,72 @@ function showAngles(canvas,canvasCtx, angles, points){
         canvasCtx.fillText(angles[i], points[i].x*canvas.width, points[i].y*canvas.height);
     }
 }
+
+function  drawCirclesDefault(canvas,canvasCtx, points) {
+    drawCircles(canvas,canvasCtx, points, 3, "red")
+}
+function  drawCircles(canvas,canvasCtx, points, radius, color){
+    for (let i = 0; i < points.length; i++){
+        drawCircle(canvas, canvasCtx,points[i],radius,color)
+    }
+}
+function drawCircle(canvas,canvasCtx, point, radius, color) {
+        const startAngle = 0;
+        const endAngle = Math.PI * 2;
+        const counterClockwise = false;
+        canvasCtx.beginPath();
+        canvasCtx.arc(point.x * canvas.width, point.y * canvas.height, radius, startAngle, endAngle, counterClockwise);
+        canvasCtx.stroke();
+        canvasCtx.fillStyle = color;
+        canvasCtx.fill();
+}
+
+function drawLinesDefault(canvas,canvasCtx,landmarks){
+
+
+
+    const lines = [];
+
+    let l1 = {"start": landmarks[1], "end": landmarks[4]};
+    lines.push(l1)
+    let l2 = {"start": landmarks[1], "end": landmarks[5]};
+    lines.push(l2)
+
+
+    let l3 = {"start": landmarks[8], "end": landmarks[5]};
+    lines.push(l3)
+    let l4 = {"start": landmarks[5], "end": landmarks[12]};
+    lines.push(l4)
+
+
+
+    let l5 = {"start": landmarks[12], "end": landmarks[9]};
+    lines.push(l5)
+    let l6 = {"start": landmarks[9], "end": landmarks[16]};
+    lines.push(l6)
+
+
+    let l7 = {"start": landmarks[16], "end": landmarks[13]};
+    lines.push(l7)
+    let l8 = {"start": landmarks[13], "end": landmarks[20]};
+    lines.push(l8)
+    drawLines(canvas,canvasCtx,lines)
+
+
+}
+function drawLines(canvas,canvasCtx,lines){
+    for(let i=0;i<lines.length; i++)
+        drawLine(canvas,canvasCtx,lines[i].start, lines[i].end, "blue", 0.5)
+}
+function drawLine(canvas,canvasCtx,start, end, color, width) {
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(start.x*canvas.width, start.y*canvas.height);
+  canvasCtx.lineTo(end.x*canvas.width, end.y*canvas.height);
+  canvasCtx.strokeStyle = color;
+  canvasCtx.lineWidth = width;
+  canvasCtx.stroke();
+}
+
 function toString(angles){
     let str = "[ ";
     str +=angles[0];
@@ -478,52 +589,6 @@ function getMiddlePoint(p1 , p2){
     const x = (p1.x + p2.x) / 2;
     const y = (p1.y + p2.y) / 2;
     return { x, y };
-}
-
-
-// control panel create
-function createControlPanel(hands,htmlElement,options) {
-    const video =htmlElement.video
-    const controls = htmlElement.controls
-    const fpsControl = htmlElement.fpsControl
-
-    const selfieMode = options.selfieMode;
-    const maxNumHands = options.maxNumHands;
-    const minDetectionConfidence= options.minDetectionConfidence;
-    const minTrackingConfidence= options.minTrackingConfidence;
-    new ControlPanel(controls, {
-        selfieMode: selfieMode,
-        maxNumHands: maxNumHands,
-        minDetectionConfidence: minDetectionConfidence,
-        minTrackingConfidence: minTrackingConfidence
-    })
-        .add([
-            new StaticText({title: 'MediaPipe Hands'}),
-            fpsControl,
-
-            new Toggle({title: 'Selfie Mode', field: 'selfieMode'}),
-
-            new Slider(
-                {title: 'Max Number of Hands', field: 'maxNumHands', range: [1, 4], step: 1}),
-
-            new Slider({
-                title: 'Min Detection Confidence',
-                field: 'minDetectionConfidence',
-                range: [0, 1],
-                step: 0.01
-            }),
-
-            new Slider({
-                title: 'Min Tracking Confidence',
-                field: 'minTrackingConfidence',
-                range: [0, 1],
-                step: 0.01
-            }),
-        ])
-        .on(options => {
-            video.classList.toggle('selfie', options.selfieMode);
-            hands.setOptions(options);
-        });
 }
 
 
