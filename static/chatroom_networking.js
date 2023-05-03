@@ -401,7 +401,8 @@ class Hand {
 
         this.controls = document.createElement("div");
         this.controls.id = iD.controls
-        this.controls.style = "visibility: hidden;"
+        // this.controls.style = "visibility: hidden;"
+        this.controls.style = "display: none"
 
         this.canvasCtx = this.canvas.getContext('2d')
     }

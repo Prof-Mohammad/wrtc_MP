@@ -54,7 +54,7 @@
     text-align: center;
     color: rgb(156, 153, 146);
     font-size: x-large;
-    height: 360px;
+    height: 140px;
 }
 .canvas-grid:empty::before{
     content: "No one else is connected!";
