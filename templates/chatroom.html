@@ -39,7 +39,7 @@
         console.log(">> {{mute_audio}}, {{mute_video}}", audioMuted, videoMuted);
     </script>
     <script src="{{url_for('static', filename='chatroom_ui.js')}}"></script>
-{#    <script src="{{url_for('static', filename='chatroom_networking.js')}}"></script>#}
+    <script src="{{url_for('static', filename='chatroom_networking.js')}}"></script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -59,9 +59,9 @@
         
     <div class="container-fluid px-0 mx-0">
 
-        <div id="video_grid" class="video-grid" style="display: none"></div>
-{#        <div id="video_grid" class="video-grid" ></div>#}
-        <div id="canvas_grid" class="canvas-grid" ></div>
+{#        <div id="video_grid" class="video-grid" style="display: none"></div>#}
+        <div id="video_grid" class="video-grid" ></div>
+{#        <div id="canvas_grid" class="canvas-grid" ></div>#}
 
 
         <div id="control_box" class="row control-box shadow">
@@ -85,7 +85,8 @@
             </div>
             <div id="div_local_vid" class="col-5 col-md-4 col-lg-3 video-item ml-auto">
                 <div class="vid-wrapper">
-                    <video id="local_vid" autoplay style="display: none" ></video>
+                    <video id="local_vid" autoplay style="display: none"  muted></video>
+{#                    <video id="local_vid" autoplay ></video>#}
                     <canvas class="output" ></canvas>
                 </div>
             </div>
@@ -95,6 +96,6 @@
     <video id="videoCamera" autoplay style="display: none"></video>
     <div style="visibility: hidden;" class="control">  </div>
 
-    <script type="text/javascript" src="/static/chatroom_networking.js"></script>
+{#    <script type="text/javascript" src="/static/chatroom_networking.js"></script>#}
 </body>
 </html>

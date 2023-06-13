@@ -1,24 +1,21 @@
 
 var myID;
 var _peer_list = {};
-var _cameras_list = {};
+var data_channels  = {};
+var localHand=null;
+
 // socketio
 var protocol = window.location.protocol;
 var socket = io(protocol + '//' + document.domain + ':' + location.port, {autoConnect: false});
 
-var camera_allowed=false;
+var camera_allowed=true;
 var mediaConstraints = {
     audio: true, // We want an audio track
     video: {
-        autoplay: true,
         height: 360
     } // ...and we want a video track
 };
 
-const constOptions= {"selfieMode":true,
-                 "maxNumHands":2,
-                 "minDetectionConfidence":0.5,
-                  "minTrackingConfidence":0.5};
 document.addEventListener("DOMContentLoaded", (event)=>{
     startCamera();
 });
@@ -34,8 +31,8 @@ function startCamera()
         setVideoMuteState(videoMuted);
 
         // hands detect in frames
-        // handsDetectCameraLocal(myVideo,constOptions, 480, 480).start()
-        _cameras_list[myID]=new Hand(true, "", 480, 480, 1).start(null,"");
+        localHand=new Hand(true, "", 480, 480, 1,null)
+        localHand.start(null,"")
 
 
         //start the socketio connection
@@ -62,8 +59,6 @@ socket.on("user-connect", (data)=>{
     let display_name = data["name"];
     _peer_list[peer_id] = undefined; // add new user to user list
     addVideoElement(peer_id, display_name);
-    // handsDetectCameraRemote(peer_id ,getVideoObj(peer_id), display_name ,constOptions,480, 480).start()
-    new Hand(false,peer_id,480,480,1).start(getVideoObj(peer_id), display_name)
 });
 
 
@@ -72,8 +67,8 @@ socket.on("user-disconnect", (data)=>{
     let peer_id = data["sid"];
     closeConnection(peer_id);
     removeVideoElement(peer_id);
-    removeCanvasElement(peer_id);
 });
+
 
 
 socket.on("user-list", (data)=>{
@@ -81,15 +76,14 @@ socket.on("user-list", (data)=>{
     myID = data["my_id"];
     if( "list" in data) // not the first to connect to room, existing user list recieved
     {
-        let recvd_list = data["list"];
+        let received_list = data["list"];
+
         // add existing users to user list
-        for(peer_id in recvd_list)
+        for(let peer_id in received_list)
         {
-            display_name = recvd_list[peer_id];
+            let display_name = received_list[peer_id];
             _peer_list[peer_id] = undefined;
             addVideoElement(peer_id, display_name);
-            // handsDetectCameraRemote(peer_id ,getVideoObj(peer_id), display_name ,constOptions,480, 480).start()
-            new Hand(false,peer_id,480,480,1).start(getVideoObj(peer_id),display_name)
         }
         start_webrtc();
     }    
@@ -102,7 +96,7 @@ function closeConnection(peer_id)
         _peer_list[peer_id].onicecandidate = null;
         _peer_list[peer_id].ontrack = null;
         _peer_list[peer_id].onnegotiationneeded = null;
-
+        _peer_list[peer_id].ontrack = null
         delete _peer_list[peer_id]; // remove user from user list
     }
 }
@@ -181,6 +175,10 @@ function createPeerConnection(peer_id)
     _peer_list[peer_id].onicecandidate = (event) => {handleICECandidateEvent(event, peer_id)};
     _peer_list[peer_id].ontrack = (event) => {handleTrackEvent(event, peer_id)};
     _peer_list[peer_id].onnegotiationneeded = () => {handleNegotiationNeededEvent(peer_id)};
+    localHand.dataChannel =  _peer_list[peer_id].createDataChannel("dataChannel")
+    localHand.id = peer_id
+    _peer_list[peer_id].ondatachannel = (event) => {handleDataChannel(event,peer_id)};
+
 
 }
 
@@ -268,14 +266,26 @@ function handleTrackEvent(event, peer_id)
     }
 }
 
+function handleDataChannel(event, peer_id){
+  const dataChannel = event.channel;
+  // listen for incoming data on the DataChannel
+  dataChannel.onmessage = (event) => {
+    const data = event.data[peer_id];
+    console.log('Received data: ' + data);
+  };
+
+}
+
 //----------------[ media pipe]-------------------------
 
 
 
+
 class Hand {
-    constructor(isLocal, id, width, height, maxNumHands) {
+    constructor(isLocal, id, width, height, maxNumHands, dataChannel) {
         this.isLocal = isLocal
         this.id = id;
+        this.dataChannel = dataChannel
         this.width = width;
         this.height = height;
         this.isRightHand = true;
@@ -422,7 +432,7 @@ class Hand {
             this.isRightHand = this.classification.label === 'Right';
             this.landmarks = results.multiHandLandmarks[0];
             // this.drawDefault();
-            this.handsDetect.run([true, true, true],this.isRightHand,this.landmarks,this.canvas,this.canvasCtx)
+            this.handsDetect.run(this.id,this.dataChannel,[true, true, true],this.isRightHand,this.landmarks,this.canvas,this.canvasCtx)
         }
         this.canvasCtx.restore();
     }
@@ -493,13 +503,15 @@ class HandDetect {
 
     }
 
-     run(toShow,isRightHand,landmarks,canvas, canvasCtx){
+     run(id,data_channel, toShow,isRightHand,landmarks,canvas, canvasCtx){
+        this.id = id
         this.landmarks = landmarks;
         this.isRightHand= isRightHand;
         this.canvas = canvas;
         this.canvasCtx = canvasCtx;
         this.angles = []
         this.points = [this.landmarks[1], this.landmarks[5], this.landmarks[9], this.landmarks[17]]
+         this.dataChannel= data_channel
         this.calculateAngles();
         if(toShow[0])
             this.showAngles();
@@ -507,6 +519,14 @@ class HandDetect {
             this.drawCirclesDefault()
         if(toShow[2])
         this.drawLinesDefault()
+         if(this.dataChannel)
+            this.sendData();
+     }
+
+     sendData(){
+        data_channels[this.id]=this.toString(this.angles)
+         console.log(data_channels)
+        this.dataChannel.send(data_channels);
      }
 
     calculateAngles() {
@@ -567,6 +587,8 @@ class HandDetect {
         for (let i = 0; i < this.angles.length; i++) {
             this.canvasCtx.fillText(this.angles[i], this.points[i].x * this.canvas.width, this.points[i].y * this.canvas.height);
         }
+        // this.canvasCtx.fillText(this.id, this.points[1].x * this.canvas.width, this.points[1].y * this.canvas.height);
+
     }
 
     drawCirclesDefault() {
